@@ -21,13 +21,24 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Database connection
-mongoose.connect(MONGODB_URI)
+const mongooseOptions = {
+  connectTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+  minPoolSize: 2,
+  retryWrites: true,
+  w: 'majority'
+};
+
+mongoose.connect(MONGODB_URI, mongooseOptions)
   .then(() => {
-    console.log('MongoDB connected successfully');
+    console.log('✅ MongoDB connected successfully');
+    console.log('Database:', new URL(MONGODB_URI).pathname.substring(1));
   })
   .catch((error) => {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    console.error('❌ MongoDB connection error:', error.message);
+    console.error('MongoDB URI:', MONGODB_URI.replace(/:[^:/@]+@/, ':***@')); // Hide password
+    // Don't exit on connection error for Vercel - allow requests to fail gracefully
   });
 
 // Routes
@@ -57,6 +68,28 @@ app.get('/api/health', (req, res) => {
   res.json({
     success: true,
     message: 'Server is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Database status endpoint
+app.get('/api/status', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const states = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  
+  res.json({
+    success: true,
+    server: 'running',
+    database: states[dbState] || 'unknown',
+    databaseState: dbState,
+    mongodb_uri: MONGODB_URI ? '✓ configured' : '✗ not configured',
+    cors_origin: CORS_ORIGIN || 'not set',
+    node_env: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
   });
 });
