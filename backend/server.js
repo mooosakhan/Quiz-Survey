@@ -33,6 +33,25 @@ mongoose.connect(MONGODB_URI)
 // Routes
 app.use('/api/users', userRoutes);
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Survey API Server',
+    version: '1.0.0',
+    endpoints: {
+      root: 'GET /',
+      health: 'GET /api/health',
+      submit: 'POST /api/users/submit',
+      getAll: 'GET /api/users/all',
+      getById: 'GET /api/users/:id',
+      stats: 'GET /api/users/stats/overview'
+    },
+    status: 'running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
