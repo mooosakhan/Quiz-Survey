@@ -151,6 +151,7 @@ export default function App() {
   const [name, setName] = useState('');
   const [designation, setDesignation] = useState('');
   const [ratings, setRatings] = useState<{ [key: number]: number }>({});
+  const [submitting, setSubmitting] = useState(false);
 
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
@@ -193,7 +194,12 @@ export default function App() {
   };
 
   const handleFinalSubmit = async () => {
+    // Prevent double submission
+    if (submitting) return;
+    
     try {
+      setSubmitting(true);
+      
       const payload = {
         name,
         designation,
@@ -237,6 +243,8 @@ export default function App() {
     } catch (error) {
       console.error('Error submitting survey:', error);
       alert('Network error. Please check if the backend server is running on port 5000.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -525,10 +533,12 @@ export default function App() {
           {/* Submit button */}
           <button
             onClick={handleFinalSubmit}
-            disabled={!name || !designation}
-            className={`${!name || !designation ? 'bg-[#d9d9d9]' : 'bg-[#0b73b7]'} content-stretch flex items-center justify-center p-[10px] relative rounded-[33px] shrink-0 w-[86px] ml-auto`}
+            disabled={!name || !designation || submitting}
+            className={`${(!name || !designation || submitting) ? 'bg-[#d9d9d9] cursor-not-allowed' : 'bg-[#0b73b7]'} content-stretch flex items-center justify-center p-[10px] relative rounded-[33px] shrink-0 w-[86px] ml-auto`}
           >
-            <p className="font-['Albert_Sans:Regular',sans-serif] font-normal leading-[normal] relative shrink-0 text-[14px] text-white whitespace-nowrap">Submit</p>
+            <p className="font-['Albert_Sans:Regular',sans-serif] font-normal leading-[normal] relative shrink-0 text-[14px] text-white whitespace-nowrap">
+              {submitting ? 'Sending...' : 'Submit'}
+            </p>
           </button>
         </motion.div>
       )}

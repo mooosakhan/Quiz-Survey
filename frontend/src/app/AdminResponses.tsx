@@ -111,6 +111,76 @@ export default function AdminResponsesPage() {
     return (total / count).toFixed(1);
   };
 
+  const getCumulativeAndAverageByDesign = () => {
+    if (users.length === 0) return[];
+    
+    const ratingKeys = [
+      'onboarding1',
+      'onboarding2',
+      'modern',
+      'gamified1',
+      'professional1',
+      'professional2',
+      'clean',
+      'gamified2',
+      'gamified3'
+    ] as const;
+
+    return designNames.map((name, index) => {
+      const key = ratingKeys[index];
+      const ratings = users
+        .map(user => user.ratings[key])
+        .filter(r => r !== undefined && r !== null);
+      
+      const cumulative = ratings.reduce((a, b) => a + (b || 0), 0);
+      const average = ratings.length > 0 ? (cumulative / ratings.length).toFixed(1) : 0;
+
+      return {
+        name,
+        cumulative,
+        average,
+        count: ratings.length
+      };
+    });
+  };
+
+  const getTotalCumulativeRating = () => {
+    if (users.length === 0) return 0;
+    return users.reduce((sum, user) => {
+      const ratings = Object.values(user.ratings);
+      return sum + ratings.reduce((a, b) => a + (b || 0), 0);
+    }, 0);
+  };
+
+  const getQuestionAnswerAnalytics = () => {
+    if (users.length === 0) return [];
+
+    return questionOptions.map((options, questionIndex) => {
+      // Count responses for each answer option
+      const answerCounts = options.map((_, optionIndex) => {
+        const count = users.filter(
+          user => user.responses[questionIndex] === optionIndex
+        ).length;
+        return { optionIndex, count };
+      });
+
+      // Find the most selected answer
+      const mostSelected = answerCounts.reduce((prev, current) =>
+        current.count > prev.count ? current : prev
+      );
+
+      return {
+        questionIndex,
+        options: options.map((option, index) => ({
+          text: option,
+          count: answerCounts[index].count,
+          percentage: users.length > 0 ? Math.round((answerCounts[index].count / users.length) * 100) : 0,
+          isMostSelected: index === mostSelected.optionIndex
+        }))
+      };
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
@@ -152,8 +222,8 @@ export default function AdminResponsesPage() {
             <p className="text-3xl font-bold text-blue-400">{getAverageRating()}/10</p>
           </div>
           <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-            <p className="text-slate-400 text-sm mb-2">Response Rate</p>
-            <p className="text-3xl font-bold text-green-400">{users.length > 0 ? '100%' : '0%'}</p>
+            <p className="text-slate-400 text-sm mb-2">Cumulative All Ratings</p>
+            <p className="text-3xl font-bold text-purple-400">{getTotalCumulativeRating()}</p>
           </div>
           <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
             <p className="text-slate-400 text-sm mb-2">Last Submission</p>
@@ -164,6 +234,91 @@ export default function AdminResponsesPage() {
             </p>
           </div>
         </motion.div>
+
+        {/* Design Ratings Summary */}
+        {users.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-white mb-4">Design Ratings Summary</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {getCumulativeAndAverageByDesign().map((design) => (
+                <div 
+                  key={design.name}
+                  className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-colors"
+                >
+                  <h3 className="text-white font-semibold mb-4">{design.name}</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-slate-400 text-sm mb-1">Average Rating</p>
+                      <p className="text-2xl font-bold text-blue-400">{design.average}/10</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-sm mb-1">Cumulative Rating</p>
+                      <p className="text-2xl font-bold text-purple-400">{design.cumulative}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-sm mb-1">Responses</p>
+                      <p className="text-lg font-semibold text-green-400">{design.count}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Question & Answer Analytics */}
+        {users.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-white mb-4">Survey Questions Analytics</h2>
+            <div className="space-y-6">
+              {getQuestionAnswerAnalytics().map((question) => (
+                <div 
+                  key={question.questionIndex}
+                  className="bg-slate-800 rounded-lg p-6 border border-slate-700"
+                >
+                  <h3 className="text-white font-semibold mb-4">
+                    Q{question.questionIndex + 1}
+                  </h3>
+                  <div className="space-y-3">
+                    {question.options.map((option, index) => (
+                      <div key={index}>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className={`text-sm font-medium ${option.isMostSelected ? 'text-green-300' : 'text-slate-300'}`}>
+                            {option.text}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-semibold ${option.isMostSelected ? 'text-green-400' : 'text-blue-400'}`}>
+                              {option.count} ({option.percentage}%)
+                            </span>
+                            {option.isMostSelected && (
+                              <span className="text-xs bg-green-600 text-white px-2 py-1 rounded font-semibold">MOST SELECTED</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="w-full bg-slate-700 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full transition-all ${option.isMostSelected ? 'bg-green-500' : 'bg-blue-500'}`}
+                            style={{ width: `${option.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {error && (
           <motion.div
@@ -209,7 +364,7 @@ export default function AdminResponsesPage() {
                         {new Date(user.createdAt).toLocaleString()}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right space-y-2">
                       <p className="text-blue-400 font-semibold">
                         Avg Rating:{' '}
                         {(
@@ -219,6 +374,13 @@ export default function AdminResponsesPage() {
                           ) / 9
                         ).toFixed(1)}
                         /10
+                      </p>
+                      <p className="text-purple-400 font-semibold">
+                        Cumulative:{' '}
+                        {Object.values(user.ratings).reduce(
+                          (a, b) => a + (b || 0),
+                          0
+                        )}
                       </p>
                       <p className="text-slate-400 text-sm">
                         {expandedUser === user._id ? '▼' : '▶'} Click to expand
